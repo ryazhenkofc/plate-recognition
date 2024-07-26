@@ -173,7 +173,11 @@ def process_frame(frame, coco_model, license_plate_detector, mot_tracker, vehicl
     frame_results = {}
     detections = coco_model(frame)[0]
     vehicle_detections = [d for d in detections.boxes.data.tolist() if int(d[5]) in vehicle_classes]
-    track_ids = mot_tracker.update(np.asarray(vehicle_detections))
+    if vehicle_detections:
+        track_ids = mot_tracker.update(np.asarray(vehicle_detections))
+    else:
+        track_ids = np.empty((0, 5))
+    
     license_plates = license_plate_detector(frame)[0]
 
     for license_plate in license_plates.boxes.data.tolist():
@@ -236,9 +240,14 @@ def process_video(video_path: str) -> int:
             ret, frame = cap.read()
             if not ret:
                 break
+            try:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results[frame_count] = process_frame(frame, coco_model, license_plate_detector, mot_tracker, vehicle_classes, reader)
 
+            except Exception as e:
+                print(f"Error processing frame {frame_count}: {e}")
+                break
             frame_count += 1
-            results[frame_count] = process_frame(frame, coco_model, license_plate_detector, mot_tracker, vehicle_classes, reader)
 
         cap.release()
 
